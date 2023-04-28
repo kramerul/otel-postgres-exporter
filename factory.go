@@ -41,6 +41,6 @@ func createDefaultConfig() component.Config {
 	return &Config{
 		QueueSettings: exporterhelper.NewDefaultQueueSettings(),
 		RetrySettings: exporterhelper.NewDefaultRetrySettings(),
-		Url:           "",
+		Dsn:           "hdb://admin:admin@localhost:443",
 	}
 }

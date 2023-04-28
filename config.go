@@ -16,7 +16,7 @@ const (
 type Config struct {
 	exporterhelper.QueueSettings `mapstructure:"sending_queue"`
 	exporterhelper.RetrySettings `mapstructure:"retry_on_failure"`
-	Url                          string `mapstructure:"url"`
+	Dsn                          string `mapstructure:"dsn"`
 }
 
 func (cfg *Config) Validate() error {
