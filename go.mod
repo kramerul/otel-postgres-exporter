@@ -1,4 +1,4 @@
-module github.com/kramerul/otel-hana-exporter
+module github.com/kramerul/otel-pg-exporter
 
 go 1.19
 
@@ -8,10 +8,6 @@ require (
 	go.opentelemetry.io/collector/component v0.76.1
 	go.opentelemetry.io/collector/exporter v0.76.1
 	go.opentelemetry.io/collector/pdata v1.0.0-rcv0011
-)
-
-require (
-	github.com/SAP/go-hdb v1.2.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
@@ -23,6 +19,7 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.16.5 // indirect
 	github.com/knadh/koanf v1.5.0 // indirect
+	github.com/lib/pq v1.10.9 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect

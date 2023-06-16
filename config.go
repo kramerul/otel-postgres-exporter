@@ -1,4 +1,4 @@
-package hanaexporter
+package pgexporter
 
 import (
 	"go.opentelemetry.io/collector/component"
@@ -7,7 +7,7 @@ import (
 
 const (
 	// The value of "type" key in configuration.
-	typeStr = "hana"
+	typeStr = "pg"
 	// The stability level of the exporter.
 	stability = component.StabilityLevelBeta
 )

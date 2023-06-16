@@ -1,1 +1,1 @@
-# otel-hana-exporter
+# otel-pg-exporter

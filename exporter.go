@@ -1,9 +1,8 @@
-package hanaexporter
+package pgexporter
 
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"database/sql"
@@ -11,9 +10,6 @@ import (
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/exporter"
 	"go.opentelemetry.io/collector/pdata/ptrace"
-
-	// Register hdb driver.
-	hana "github.com/SAP/go-hdb/driver"
 )
 
 type tracesExporter struct {
@@ -22,7 +18,7 @@ type tracesExporter struct {
 }
 
 const (
-	driverName = "hdb"
+	driverName = "pg"
 )
 
 func newTracesExporter(config *Config, settings exporter.CreateSettings) (*tracesExporter, error) {
@@ -37,7 +33,7 @@ func newTracesExporter(config *Config, settings exporter.CreateSettings) (*trace
 	}
 
 	_, err = db.Exec(`
-         CREATE TABLE SQL_TRACES ( 
+         CREATE TABLE TRACES IF NOT EXISTS ( 
 			STATEMENT VARCHAR(5000) NOT NULL, 
 			START_TIME TIMESTAMP NOT NULL, 
 			END_TIME TIMESTAMP NOT NULL, 
@@ -45,14 +41,7 @@ func newTracesExporter(config *Config, settings exporter.CreateSettings) (*trace
 			PRIMARY KEY(START_TIME)
 			)`)
 	if err != nil {
-		var dbError hana.Error
-		if errors.As(err, &dbError) {
-			if dbError.Code() != 288 {
-				return nil, err
-			}
-		} else {
-			return nil, err
-		}
+		return nil, err
 	}
 
 	return &tracesExporter{
@@ -69,6 +58,7 @@ func (e *tracesExporter) pushTraces(ctx context.Context, td ptrace.Traces) error
 			for j := 0; j < s.Spans().Len(); j++ {
 				var x = s.Spans().At(j)
 				var attributes = x.Attributes().AsRaw()
+				fmt.Printf("Span %v\n", attributes)
 				if _, ok := attributes["sql"]; ok {
 					fmt.Printf("Span %v\n", attributes)
 					jsonStr, err := json.Marshal(attributes)

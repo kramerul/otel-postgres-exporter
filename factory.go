@@ -1,4 +1,4 @@
-package hanaexporter
+package pgexporter
 
 import (
 	"context"
