@@ -1,4 +1,4 @@
-module github.com/kramerul/otel-pg-exporter
+module github.com/kramerul/otel-postgres-exporter
 
 go 1.19
 
