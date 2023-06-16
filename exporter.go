@@ -5,41 +5,52 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"database/sql"
-
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/exporter"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 )
 
 type tracesExporter struct {
-	db      *sql.DB
+	db      *pgx.Conn
 	started bool
 }
 
 const (
-	driverName = "pg"
+	driverName = "pgx"
 )
 
 func newTracesExporter(config *Config, settings exporter.CreateSettings) (*tracesExporter, error) {
 
-	var db, err = sql.Open(driverName, config.Dsn)
+	var db, err = pgx.Connect(context.Background(), config.Dsn)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := db.Ping(); err != nil {
+	_, err = db.Exec(context.TODO(), `
+         CREATE TABLE IF NOT EXISTS  traces ( 
+			trace_id VARCHAR(32) NOT NULL,
+			parent_id VARCHAR(16),
+			id VARCHAR(100),
+			name VARCHAR(100),
+			kind VARCHAR(100),
+			range tsrange NOT NULL,
+			attributes JSONB,
+			PRIMARY KEY(id)
+			)`)
+	if err != nil {
 		return nil, err
 	}
 
-	_, err = db.Exec(`
-         CREATE TABLE TRACES IF NOT EXISTS ( 
-			STATEMENT VARCHAR(5000) NOT NULL, 
-			START_TIME TIMESTAMP NOT NULL, 
-			END_TIME TIMESTAMP NOT NULL, 
-			ATTRIBUTES VARCHAR(5000) NOT NULL,
-			PRIMARY KEY(START_TIME)
-			)`)
+	_, err = db.Exec(context.TODO(), `
+	CREATE INDEX IF NOT EXISTS traces_range_idx ON traces (range);`)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = db.Exec(context.TODO(), `
+	CREATE INDEX IF NOT EXISTS traces_attributes_idx ON traces USING GIN (attributes);`)
 	if err != nil {
 		return nil, err
 	}
@@ -51,6 +62,7 @@ func newTracesExporter(config *Config, settings exporter.CreateSettings) (*trace
 }
 
 func (e *tracesExporter) pushTraces(ctx context.Context, td ptrace.Traces) error {
+	rows := make([][]interface{}, 0)
 	for i := 0; i < td.ResourceSpans().Len(); i++ {
 		var span = td.ResourceSpans().At(i).ScopeSpans()
 		for k := 0; k < span.Len(); k++ {
@@ -59,21 +71,29 @@ func (e *tracesExporter) pushTraces(ctx context.Context, td ptrace.Traces) error
 				var x = s.Spans().At(j)
 				var attributes = x.Attributes().AsRaw()
 				fmt.Printf("Span %v\n", attributes)
-				if _, ok := attributes["sql"]; ok {
-					fmt.Printf("Span %v\n", attributes)
-					jsonStr, err := json.Marshal(attributes)
-					if err != nil {
-						return err
-					}
-					_, err = e.db.Exec(" INSERT INTO SQL_TRACES (STATEMENT,START_TIME,END_TIME,ATTRIBUTES) VALUES(?,?,?,?)",
-						attributes["sql"], x.StartTimestamp().AsTime(), x.EndTimestamp().AsTime(), jsonStr)
-					if err != nil {
-						return err
-					}
+				jsonStr, err := json.Marshal(attributes)
+				if err != nil {
+					return err
 				}
+				spanRange := pgtype.Range[pgtype.Timestamp]{
+					Lower:     pgtype.Timestamp{Time: x.StartTimestamp().AsTime(), Valid: true, InfinityModifier: pgtype.Finite},
+					Upper:     pgtype.Timestamp{Time: x.EndTimestamp().AsTime(), Valid: true, InfinityModifier: pgtype.Finite},
+					LowerType: pgtype.Inclusive,
+					UpperType: pgtype.Exclusive,
+					Valid:     true,
+				}
+				rows = append(rows, []interface{}{x.TraceID().String(), x.ParentSpanID().String(), x.SpanID().String(), x.Name(), x.Kind(), spanRange, jsonStr})
 			}
 		}
 
+	}
+	_, err := e.db.CopyFrom(context.TODO(),
+		pgx.Identifier{"traces"},
+		[]string{"trace_id", "parent_id", "id", "name", "kind", "range", "attributes"},
+		pgx.CopyFromRows(rows),
+	)
+	if err != nil {
+		return err
 	}
 	return nil
 }

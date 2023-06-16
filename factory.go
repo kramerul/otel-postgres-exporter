@@ -41,6 +41,6 @@ func createDefaultConfig() component.Config {
 	return &Config{
 		QueueSettings: exporterhelper.NewDefaultQueueSettings(),
 		RetrySettings: exporterhelper.NewDefaultRetrySettings(),
-		Dsn:           "hdb://admin:admin@localhost:443",
+		Dsn:           "postgres://localhost:5432",
 	}
 }
